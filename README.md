@@ -1,263 +1,207 @@
-# ELMA365 Documentation Crawler
+# ELMA365 Technical Specification Generator
 
-FastAPI application for crawling, normalizing, and storing ELMA365 documentation pages.
+Система автоматической генерации технических заданий на основе бизнес-требований с использованием документации ELMA365.
 
-## Features
+## 🎯 Возможности
 
-- **Recursive Web Crawler**: Automatically discovers and crawls documentation pages from `/help/` root
-- **Manual URL Addition**: Support for manually adding URLs to crawl queue
-- **HTML Normalization**: Removes boilerplate and structures content into blocks (headers, paragraphs, code, lists)
-- **Special Block Extraction**: Extracts special sections like "В этой статье", "Пример", "API"
-- **Entity Extraction**: Extracts semantic elements (headers, code blocks, special blocks, lists) to entities table
-- **Dual Storage**: Saves to PostgreSQL (JSONB) and local JSON files
-- **RESTful API**: FastAPI endpoints for all operations
+- **📚 Сбор документации** - Автоматический краулинг и нормализация документации ELMA365
+- **🔍 MCP Server** - Интерфейс к документации для LLM (Model Context Protocol)
+- **🏗️ Decision Engine** - Агент-Архитектор для генерации архитектурных решений
+- **📝 TS Generator** - Генератор технических заданий в форматах Markdown, PDF, DOCX, HTML
+- **🤖 Telegram Bot** - Удобный UI для пользователей
+- **🔗 n8n Integration** - Готовые workflows для автоматизации
 
-## Project Structure
+## 📁 Структура проекта
 
 ```
-.
-├── app/
-│   ├── main.py              # FastAPI application entry point
-│   ├── config.py            # Configuration management
-│   ├── utils.py             # Utility functions (doc_id extraction, etc.)
-│   ├── crawler/             # Crawler module
-│   │   ├── crawler.py       # Main crawler logic
-│   │   ├── parser.py        # HTML parsing with BeautifulSoup
-│   │   └── storage.py       # Storage handler (DB + JSON)
-│   ├── normalizer/          # Normalizer module
-│   │   ├── normalizer.py    # Main normalization logic
-│   │   ├── extractors.py    # Special block extractors
-│   │   └── entity_extractor.py  # Entity extraction
-│   ├── database/            # Database layer
-│   │   ├── models.py         # SQLAlchemy models
-│   │   └── database.py      # Database connection & session
-│   └── api/                 # API endpoints
-│       └── routes.py        # FastAPI routes
-├── tests/                   # Test suite
-│   ├── test_crawler.py      # Crawler tests
-│   ├── test_normalizer.py   # Normalizer tests
-│   ├── test_control_pages.py  # Control page tests
-│   └── test_integration.py   # Integration tests
-├── alembic/                 # Database migrations
-├── requirements.txt         # Python dependencies
-└── .env.example            # Environment variables template
+tz-hz/
+├── app/                    # Основное приложение
+│   ├── main.py            # FastAPI точка входа
+│   ├── crawler/           # Краулер документации
+│   ├── normalizer/        # Нормализация контента
+│   ├── mcp/               # MCP Server
+│   ├── decision_engine/   # Decision Engine (Агент-Архитектор)
+│   ├── ts_generator/      # Генератор ТЗ
+│   └── telegram_bot/      # Telegram бот
+├── scripts/                # Утилитарные скрипты
+├── tests/                  # Тесты
+├── docs/                   # Документация
+├── examples/               # Примеры
+└── data/                   # Данные (не в git)
 ```
 
-## Installation
+Подробная структура: [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd elma_tz_hz
-```
+## 🚀 Быстрый старт
 
-2. Create virtual environment:
+### 1. Установка зависимостей
+
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+.\venv\Scripts\Activate.ps1  # Windows
+source venv/bin/activate      # Linux/Mac
 
-3. Install dependencies:
-```bash
 pip install -r requirements.txt
 ```
 
-4. Set up environment variables:
+### 2. Настройка базы данных
+
 ```bash
-cp .env.example .env
-# Edit .env with your database URL and settings
+# Создать БД
+python scripts/database/create_db.py
+
+# Инициализировать таблицы
+python scripts/database/init_tables.py
 ```
 
-5. Set up database:
-```bash
-# Make sure PostgreSQL is running
-# Update DATABASE_URL in .env
+### 3. Настройка переменных окружения
 
-# Run migrations
-alembic upgrade head
+Создайте файл `.env`:
+
+```env
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/elma365_crawler
+TELEGRAM_BOT_TOKEN=your_token_here
+TELEGRAM_BOT_ENABLED=true
 ```
 
-## Configuration
-
-Environment variables (see `.env.example`):
-
-- `DATABASE_URL`: PostgreSQL connection string
-- `CRAWL_BASE_URL`: Base URL for crawling (default: https://elma365.com)
-- `CRAWL_MAX_DEPTH`: Maximum crawl depth (default: 10)
-- `CRAWL_DELAY`: Delay between requests in seconds (default: 1.0)
-- `CRAWL_MAX_CONCURRENT`: Maximum concurrent requests (default: 5)
-- `OUTPUT_DIR`: Local JSON output directory (default: data/crawled)
-- `LOG_LEVEL`: Logging level (default: INFO)
-
-## Usage
-
-### Start the API server:
+### 4. Запуск API сервера
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-The API will be available at `http://localhost:8000`
+API будет доступен на `http://localhost:8000`
 
-### API Endpoints
+### 5. Запуск Telegram бота (опционально)
 
-#### Crawling
-
-- `POST /api/crawl/start` - Start recursive crawl from `/help/`
-  ```json
-  {
-    "start_url": "https://elma365.com/ru/help/"  // optional
-  }
-  ```
-
-- `POST /api/crawl/url` - Manually add URL to crawl queue
-  ```json
-  {
-    "url": "https://elma365.com/ru/help/platform/page.html"
-  }
-  ```
-
-- `GET /api/crawl/status` - Get crawling status
-
-#### Normalization
-
-- `POST /api/normalize/{doc_id}` - Normalize a specific document
-- `POST /api/normalize/all` - Normalize all crawled documents
-
-#### Data Retrieval
-
-- `GET /api/docs` - List all documents (with pagination: `?skip=0&limit=100`)
-- `GET /api/docs/{doc_id}` - Get document details
-- `GET /api/entities/{doc_id}` - Get entities for a document
-
-### Example Workflow
-
-1. Start crawling:
 ```bash
-curl -X POST "http://localhost:8000/api/crawl/start" \
-  -H "Content-Type: application/json" \
-  -d '{}'
+python run_telegram_bot.py
 ```
 
-2. Check status:
-```bash
-curl "http://localhost:8000/api/crawl/status"
+## 📖 Документация
+
+### API
+
+- [MCP API](docs/API/MCP_API.md) - Интерфейс к документации
+- [Decision Engine API](docs/API/DECISION_ENGINE_API.md) - Генерация архитектуры
+- [TS Generator API](docs/API/TS_GENERATOR_API.md) - Генерация ТЗ
+- [TS Export API](docs/API/TS_EXPORT_API.md) - Экспорт файлов
+
+### Интеграция
+
+- [n8n Integration](docs/INTEGRATION/N8N_INTEGRATION.md) - Автоматизация через n8n
+- [Telegram Bot](docs/INTEGRATION/TELEGRAM_BOT.md) - Использование бота
+- [Integration Guide](docs/INTEGRATION/README_INTEGRATION.md) - Общее руководство
+
+### Настройка
+
+- [Инструкция запуска бота](docs/SETUP/ИНСТРУКЦИЯ_ЗАПУСКА_БОТА.md)
+- [PDF Export Fix](docs/SETUP/PDF_EXPORT_FIXED.md)
+
+## 🔄 Полный пайплайн
+
+```
+Бизнес-требования
+    ↓
+Decision Engine (Агент-Архитектор)
+    ↓
+Architecture Solution (JSON)
+    ↓
+TS Generator
+    ↓
+Technical Specification (Markdown)
+    ↓
+TS Exporter
+    ↓
+PDF / DOCX / HTML файл
 ```
 
-3. Normalize all documents:
-```bash
-curl -X POST "http://localhost:8000/api/normalize/all"
+## 🎮 Использование
+
+### Через Telegram бота
+
+1. Откройте бота в Telegram
+2. Отправьте описание задачи
+3. Получите архитектурное решение
+4. Нажмите "Сгенерировать ТЗ"
+5. Выберите формат (PDF, DOCX, HTML, Markdown)
+6. Получите готовое ТЗ
+
+### Через API
+
+```python
+import requests
+
+# 1. Создать архитектурное решение
+response = requests.post(
+    "http://localhost:8000/api/decision-engine/design",
+    json={
+        "title": "Согласование договора",
+        "business_requirements": "Создать процесс согласования",
+        "workflow_steps": ["Создание заявки", "Согласование", "Завершение"],
+        "user_roles": ["Менеджер", "Директор"]
+    }
+)
+architecture = response.json()
+
+# 2. Экспортировать в DOCX
+response = requests.post(
+    "http://localhost:8000/api/ts/export/docx?mode=deterministic",
+    json=architecture
+)
+
+with open("technical_specification.docx", "wb") as f:
+    f.write(response.content)
 ```
 
-4. Get documents:
-```bash
-curl "http://localhost:8000/api/docs"
-```
+### Через n8n
 
-## Database Schema
+См. [N8N Integration](docs/INTEGRATION/N8N_INTEGRATION.md) для готовых workflows.
 
-### docs table
-- `id` (PK)
-- `doc_id` (unique) - URL-based ID with UUID fallback
-- `url` (unique)
-- `title`
-- `section` - Combined breadcrumbs + URL segment
-- `content` (JSONB) - Normalized structured blocks
-- `created_at`
-- `last_crawled`
-
-### entities table
-- `id` (PK)
-- `doc_id` (FK to docs.doc_id)
-- `type` - Entity type (header, code_block, list, special_block, etc.)
-- `data` (JSONB) - Entity-specific data
-- `created_at`
-
-### specifications table
-- `id` (PK)
-- `source_text`
-- `analyst_json` (JSONB)
-- `architect_json` (JSONB)
-- `spec_markdown`
-- `created_at`
-
-## Testing
-
-Run tests:
+## 🧪 Тестирование
 
 ```bash
-# All tests
+# Все тесты
 pytest
 
-# Unit tests only
-pytest -m "not integration"
+# Юнит-тесты
+pytest tests/unit/
 
-# Integration tests only
-pytest -m integration
-
-# Specific test file
-pytest tests/test_normalizer.py
+# Интеграционные тесты
+pytest tests/integration/
 ```
 
-## Normalized Content Structure
+## 📊 Статус системы
 
-The normalizer produces structured JSON:
+✅ **Все компоненты готовы:**
 
-```json
-{
-  "blocks": [
-    {
-      "type": "header",
-      "level": 1,
-      "text": "Main Title",
-      "id": "main-title"
-    },
-    {
-      "type": "paragraph",
-      "text": "Content text..."
-    },
-    {
-      "type": "code_block",
-      "language": "python",
-      "code": "def example():\n    pass"
-    },
-    {
-      "type": "list",
-      "ordered": false,
-      "items": ["Item 1", "Item 2"]
-    },
-    {
-      "type": "special_block",
-      "kind": "В этой статье",
-      "heading": "В этой статье",
-      "content": [...]
-    }
-  ],
-  "metadata": {
-    "title": "Document Title",
-    "breadcrumbs": ["Платформа", "API"],
-    "extracted_at": "2025-01-27T10:00:00",
-    "special_blocks_count": 1
-  }
-}
-```
+- ✅ Data Layer (docs + entities)
+- ✅ MCP Server (интерфейс к документации)
+- ✅ Decision Engine (генерация архитектуры)
+- ✅ TS Generator (генерация ТЗ)
+- ✅ TS Exporter (PDF, DOCX, HTML, Markdown)
+- ✅ Telegram Bot (UI для пользователей)
+- ✅ n8n Integration (автоматизация)
 
-## Development
+## 🔧 Технологии
 
-### Running Migrations
+- **FastAPI** - Web framework
+- **PostgreSQL** - База данных
+- **SQLAlchemy** - ORM
+- **BeautifulSoup** - Парсинг HTML
+- **reportlab** - Генерация PDF
+- **python-docx** - Генерация DOCX
+- **python-telegram-bot** - Telegram бот
+- **Alembic** - Миграции БД
 
-```bash
-# Create new migration
-alembic revision --autogenerate -m "Description"
+## 📝 Лицензия
 
-# Apply migrations
-alembic upgrade head
+[Укажите лицензию]
 
-# Rollback
-alembic downgrade -1
-```
+## 🤝 Поддержка
 
-## License
-
-[Your License Here]
-
+При возникновении проблем:
+1. Проверьте логи API сервера
+2. Проверьте подключение к базе данных
+3. Убедитесь, что все зависимости установлены
+4. См. документацию в папке `docs/`

@@ -12,6 +12,11 @@ class HTMLParser:
     
     def parse(self, html: str, url: str) -> Dict:
         """Parse HTML and extract all relevant data."""
+        # Убеждаемся, что HTML правильно декодирован
+        if isinstance(html, bytes):
+            html = html.decode('utf-8', errors='ignore')
+        
+        # Парсим HTML
         soup = BeautifulSoup(html, 'lxml')
         
         return {
@@ -28,17 +33,23 @@ class HTMLParser:
         # Try h1 first
         h1 = soup.find('h1')
         if h1:
-            return h1.get_text(strip=True)
+            text = h1.get_text(strip=True)
+            if text:
+                return text.encode('utf-8', errors='ignore').decode('utf-8')
         
         # Try title tag
         title_tag = soup.find('title')
         if title_tag:
-            return title_tag.get_text(strip=True)
+            text = title_tag.get_text(strip=True)
+            if text:
+                return text.encode('utf-8', errors='ignore').decode('utf-8')
         
         # Try meta title
         meta_title = soup.find('meta', property='og:title')
         if meta_title and meta_title.get('content'):
-            return meta_title.get('content')
+            text = meta_title.get('content')
+            if text:
+                return text.encode('utf-8', errors='ignore').decode('utf-8')
         
         return None
     
@@ -108,15 +119,62 @@ class HTMLParser:
         return ''
     
     def extract_plain_text(self, soup: BeautifulSoup) -> str:
-        """Extract plain text from HTML."""
-        # Remove script and style elements
-        for script in soup(["script", "style"]):
-            script.decompose()
+        """Extract plain text from HTML, removing ALL tags and keeping only raw text."""
+        # Создаем копию для работы
+        soup_copy = BeautifulSoup(str(soup), 'lxml')
         
-        # Get text
-        text = soup.get_text(separator=' ', strip=True)
-        # Clean up whitespace
-        text = re.sub(r'\s+', ' ', text)
+        # Удаляем все элементы, которые не нужны для основного контента
+        elements_to_remove = [
+            'script', 'style', 'nav', 'header', 'footer',
+            '.navbar', '.menu', '.navigation', '.sidebar',
+            '.header', '.footer', '.cookie', '.modal', '.popup',
+            '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]',
+            'noscript', 'iframe', 'embed', 'object'
+        ]
+        
+        for selector in elements_to_remove:
+            for element in soup_copy.select(selector):
+                element.decompose()
+        
+        # Пытаемся найти основной контент
+        main_content = None
+        content_selectors = [
+            'main', 'article', '.content', '.main-content',
+            '#content', '.article-content', '[role="main"]',
+            '.help-content', '.documentation-content'
+        ]
+        
+        for selector in content_selectors:
+            main_content = soup_copy.select_one(selector)
+            if main_content:
+                break
+        
+        # Если не нашли основной контент, используем body
+        if not main_content:
+            main_content = soup_copy.find('body') or soup_copy
+        
+        # Извлекаем ТОЛЬКО текст, удаляя все теги
+        # Используем get_text() который автоматически удаляет все HTML теги
+        text = main_content.get_text(separator='\n', strip=True)
+        
+        # Дополнительная очистка:
+        # 1. Убираем множественные переносы строк
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        # 2. Убираем множественные пробелы и табы
+        text = re.sub(r'[ \t]+', ' ', text)
+        # 3. Убираем пробелы в начале и конце строк
+        lines = [line.strip() for line in text.split('\n')]
+        text = '\n'.join(line for line in lines if line)  # Убираем пустые строки
+        # 4. Убираем HTML entities если остались
+        text = text.replace('&nbsp;', ' ')
+        text = text.replace('&amp;', '&')
+        text = text.replace('&lt;', '<')
+        text = text.replace('&gt;', '>')
+        text = text.replace('&quot;', '"')
+        text = text.replace('&#39;', "'")
+        # 5. Убеждаемся в правильной кодировке
+        text = text.encode('utf-8', errors='ignore').decode('utf-8')
+        
         return text.strip()
     
     def extract_links(self, soup: BeautifulSoup, current_url: str) -> List[str]:

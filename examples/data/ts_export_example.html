@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Техническое задание</title>
+    
+        <style>
+            body {
+                font-family: 'DejaVu Sans', Arial, sans-serif;
+                line-height: 1.6;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                color: #333;
+            }
+            h1 {
+                color: #2c3e50;
+                border-bottom: 3px solid #3498db;
+                padding-bottom: 10px;
+            }
+            h2 {
+                color: #34495e;
+                margin-top: 30px;
+                border-bottom: 2px solid #ecf0f1;
+                padding-bottom: 5px;
+            }
+            h3 {
+                color: #7f8c8d;
+                margin-top: 20px;
+            }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 20px 0;
+            }
+            table th, table td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            table th {
+                background-color: #3498db;
+                color: white;
+            }
+            code {
+                background-color: #f4f4f4;
+                padding: 2px 4px;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+            }
+            pre {
+                background-color: #f4f4f4;
+                padding: 10px;
+                border-radius: 5px;
+                overflow-x: auto;
+            }
+            ul, ol {
+                margin: 10px 0;
+                padding-left: 30px;
+            }
+            li {
+                margin: 5px 0;
+            }
+        </style>
+        
+</head>
+<body>
+<h1>Техническое задание</h1>
+<p><strong>Дата создания:</strong> 2025-11-27 12:08:41
+<strong>Уверенность решения:</strong> 75.0%</p>
+<h2>1. Описание задачи</h2>
+<p>На основе анализа бизнес-требований 'Согласование договора' определены следующие типы решений: process, app. Спроектирован бизнес-процесс 'Согласование договора' с 3 шагами. Спроектировано приложение 'Согласование договора' с 3 полями.</p>
+<h2>2. Типы решений</h2>
+<ul>
+<li><strong>Бизнес-процесс</strong></li>
+<li><strong>Приложение</strong></li>
+</ul>
+<h2>3. Архитектура решения</h2>
+<h3>3.1. Бизнес-процесс</h3>
+<p><strong>Название процесса:</strong> Согласование договора
+<strong>Тип процесса:</strong> workflow</p>
+<p><strong>Шаги процесса:</strong></p>
+<ol>
+<li><strong>Создание заявки</strong></li>
+<li>Тип: task</li>
+<li>
+<p>Исполнитель: Менеджер</p>
+</li>
+<li>
+<p><strong>Согласование менеджером</strong></p>
+</li>
+<li>Тип: task</li>
+<li>
+<p>Исполнитель: Менеджер</p>
+</li>
+<li>
+<p><strong>Согласование директором</strong></p>
+</li>
+<li>Тип: task</li>
+<li>Исполнитель: Менеджер</li>
+</ol>
+<p><strong>Роли в процессе:</strong></p>
+<ul>
+<li>Менеджер</li>
+<li>Директор</li>
+</ul>
+<h3>3.2. Приложение</h3>
+<p><strong>Название приложения:</strong> Согласование договора
+<strong>Тип сущности:</strong> card</p>
+<p><strong>Поля приложения:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Название</th>
+<th>Метка</th>
+<th>Тип</th>
+<th>Обязательное</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>договор</td>
+<td>Договор</td>
+<td>string</td>
+<td>Да</td>
+</tr>
+<tr>
+<td>сумма</td>
+<td>Сумма</td>
+<td>string</td>
+<td>Да</td>
+</tr>
+<tr>
+<td>согласованный_договор</td>
+<td>Согласованный договор</td>
+<td>string</td>
+<td>Нет</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Представления:</strong></p>
+<ul>
+<li><strong>list</strong> (table): договор, сумма, согласованный_договор</li>
+<li><strong>card</strong> (form): договор, сумма, согласованный_договор</li>
+</ul>
+<p><strong>Права доступа:</strong></p>
+<ul>
+<li><strong>Менеджер</strong>: read, create, update</li>
+<li><strong>Директор</strong>: read, create, update</li>
+</ul>
+<h2>4. Функциональные требования</h2>
+<h3>4.1. Требования к процессу</h3>
+<ol>
+<li>Процесс должен содержать 3 шагов</li>
+<li>В процессе должны быть задействованы роли: Менеджер, Директор</li>
+</ol>
+<h3>4.2. Требования к приложению</h3>
+<ol>
+<li>Приложение должно содержать 3 полей</li>
+<li>Должны быть реализованы представления: list, card</li>
+</ol>
+<h2>5. Нефункциональные требования</h2>
+<ul>
+<li>Решение должно соответствовать документации ELMA365</li>
+<li>Все компоненты должны быть протестированы</li>
+<li>Решение должно быть масштабируемым</li>
+</ul>
+<h2>6. Роли и права</h2>
+<h3>Директор</h3>
+<p><strong>Права доступа:</strong> read, create, update</p>
+<h3>Менеджер</h3>
+<p><strong>Права доступа:</strong> read, create, update</p>
+<h2>7. Использованная документация ELMA365</h2>
+<p>Документация будет уточнена в процессе разработки.</p>
+<h2>8. Заключение</h2>
+<p>Данное техническое задание описывает архитектурное решение, сгенерированное на основе бизнес-требований и документации ELMA365.</p>
+<p>Уверенность в решении: <strong>75.0%</strong></p>
+<h2>9. Приложения</h2>
+<h3>Приложение А. Структура данных</h3>
+<p>Детальная структура данных будет определена в процессе разработки.</p>
+<h3>Приложение Б. Схемы процессов</h3>
+<p>Схема процесса будет создана на основе шагов, описанных в разделе 3.1.</p>
+</body>
+</html>

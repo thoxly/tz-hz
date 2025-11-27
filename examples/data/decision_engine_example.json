@@ -1,0 +1,85 @@
+{
+  "requirements": {
+    "title": "Согласование договора",
+    "business_requirements": "Необходимо создать процесс согласования договоров с несколькими этапами согласования",
+    "inputs": [
+      "Договор",
+      "Сумма"
+    ],
+    "outputs": [
+      "Согласованный договор"
+    ],
+    "user_roles": [
+      "Менеджер",
+      "Директор",
+      "Бухгалтер"
+    ],
+    "workflow_steps": [
+      "Создание заявки на согласование",
+      "Согласование менеджером",
+      "Согласование директором",
+      "Согласование бухгалтером",
+      "Завершение процесса"
+    ],
+    "integration_targets": [],
+    "ui_requirements": [],
+    "constraints": [
+      "Срок согласования не более 5 дней"
+    ]
+  },
+  "solution": {
+    "solution_type": [
+      "process"
+    ],
+    "process_design": {
+      "process_name": "Согласование договора",
+      "process_type": "workflow",
+      "steps": [
+        {
+          "step_number": 1,
+          "name": "Создание заявки на согласование",
+          "type": "task",
+          "assignee_role": "Менеджер"
+        },
+        {
+          "step_number": 2,
+          "name": "Согласование менеджером",
+          "type": "task",
+          "assignee_role": "Менеджер"
+        },
+        {
+          "step_number": 3,
+          "name": "Согласование директором",
+          "type": "task",
+          "assignee_role": "Менеджер"
+        },
+        {
+          "step_number": 4,
+          "name": "Согласование бухгалтером",
+          "type": "task",
+          "assignee_role": "Менеджер"
+        },
+        {
+          "step_number": 5,
+          "name": "Завершение процесса",
+          "type": "task",
+          "assignee_role": "Менеджер"
+        }
+      ],
+      "roles": [
+        "Менеджер",
+        "Директор",
+        "Бухгалтер"
+      ],
+      "conditions": [],
+      "timers": [],
+      "notifications": []
+    },
+    "app_structure": null,
+    "widget_design": null,
+    "integration_points": null,
+    "references": [],
+    "reasoning": "На основе анализа бизнес-требований 'Согласование договора' определены следующие типы решений: process. Спроектирован бизнес-процесс 'Согласование договора' с 5 шагами.",
+    "confidence": 0.75
+  }
+}

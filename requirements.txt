@@ -12,4 +12,15 @@ pytest==7.4.3
 pytest-asyncio==0.21.1
 lxml==4.9.3
 aiosqlite==0.19.0
+# TS Generator dependencies
+markdown==3.5.1
+weasyprint==60.1
+python-docx==1.1.0
+reportlab==4.0.7
+# Telegram Bot
+python-telegram-bot>=20.7
+# LLM Providers (optional - выберите один или используйте Ollama)
+# openai>=1.0.0  # Для OpenAI или DeepSeek
+# anthropic>=0.18.0  # Для Anthropic
+# aiohttp>=3.9.0  # Для Ollama (уже установлен)
 

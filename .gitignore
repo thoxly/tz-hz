@@ -4,9 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
 build/
 develop-eggs/
 dist/
@@ -23,10 +20,16 @@ wheels/
 .installed.cfg
 *.egg
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+.env.local
+.env.*.local
 
 # IDE
 .vscode/
@@ -35,22 +38,45 @@ wheels/
 *.swo
 *~
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Environment variables
-.env
-.env.local
-
-# Alembic
-alembic.ini.bak
-
-# Test coverage
-.coverage
-htmlcov/
-.pytest_cache/
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # Logs
 *.log
+logs/
 
+# Data
+data/crawled/
+*.json
+!examples/data/*.json
+!package.json
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test files
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# PDF/DOCX exports (временные)
+*.pdf
+*.docx
+*.html
+!examples/data/*.pdf
+!examples/data/*.docx
+!examples/data/*.html
+
+# Alembic
+alembic.ini.bak

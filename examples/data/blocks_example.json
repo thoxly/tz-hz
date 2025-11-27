@@ -1,0 +1,27 @@
+{
+  "doc_id": "test_help_page",
+  "url": "https://elma365.com/ru/help",
+  "title": "Тестовая страница помощи",
+  "blocks": [
+    {
+      "type": "header",
+      "level": 1,
+      "text": "Тестовая страница",
+      "id": ""
+    },
+    {
+      "type": "paragraph",
+      "text": "Это тестовая запись для проверки работы базы данных."
+    }
+  ],
+  "metadata": {
+    "title": "Тестовая страница помощи",
+    "breadcrumbs": [
+      "Главная",
+      "Помощь"
+    ],
+    "extracted_at": "2025-11-27T09:24:03.302914",
+    "special_blocks_count": 0
+  },
+  "total_blocks": 2
+}

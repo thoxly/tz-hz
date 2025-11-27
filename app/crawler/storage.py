@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.config import settings
 from app.database.models import Doc
+from app.normalizer import Normalizer
 
 logger = logging.getLogger(__name__)
 
@@ -24,17 +25,40 @@ class Storage:
     async def save_to_db(self, session: AsyncSession, doc_data: Dict) -> Optional[Doc]:
         """Save or update document in PostgreSQL."""
         try:
+            # Normalize HTML to get structured blocks
+            blocks = []
+            normalized_metadata = {}
+            
+            html = doc_data.get('html', '')
+            if html:
+                try:
+                    normalizer = Normalizer()
+                    normalized = normalizer.normalize(
+                        html,
+                        title=doc_data.get('title'),
+                        breadcrumbs=doc_data.get('breadcrumbs', [])
+                    )
+                    blocks = normalized.get('blocks', [])
+                    normalized_metadata = normalized.get('metadata', {})
+                except Exception as e:
+                    logger.warning(f"Error normalizing HTML for {doc_data.get('doc_id')}: {e}")
+            
             # Prepare data for JSONB content field
             content_data = {
                 'html': doc_data.get('html'),
                 'plain_text': doc_data.get('plain_text'),
                 'breadcrumbs': doc_data.get('breadcrumbs', []),
                 'links': doc_data.get('links', []),
+                'blocks': blocks,  # ← Добавляем структурированные блоки!
                 'raw_data': {
                     'depth': doc_data.get('depth', 0),
                     'crawled_at': doc_data.get('last_crawled').isoformat() if doc_data.get('last_crawled') else None
                 }
             }
+            
+            # Добавляем метаданные нормализации если есть
+            if normalized_metadata:
+                content_data['normalized_metadata'] = normalized_metadata
             
             # Use PostgreSQL upsert (INSERT ... ON CONFLICT)
             stmt = insert(Doc).values(

@@ -36,11 +36,16 @@ class Crawler:
     
     async def __aenter__(self):
         """Async context manager entry."""
+        # Создаем connector с поддержкой редиректов
+        connector = aiohttp.TCPConnector(limit=100)
         self.session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=30),
+            timeout=aiohttp.ClientTimeout(total=60),
             headers={
-                'User-Agent': 'Mozilla/5.0 (compatible; ELMA365-Crawler/1.0)'
-            }
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
+            },
+            connector=connector
         )
         self.semaphore = asyncio.Semaphore(self.max_concurrent)
         return self
@@ -134,7 +139,7 @@ class Crawler:
             try:
                 logger.info(f"Crawling: {url} (depth: {depth})")
                 
-                async with self.session.get(url) as response:
+                async with self.session.get(url, allow_redirects=True, max_redirects=10) as response:
                     if response.status != 200:
                         logger.warning(f"Failed to fetch {url}: status {response.status}")
                         self.stats['total_failed'] += 1

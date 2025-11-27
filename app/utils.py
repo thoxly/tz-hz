@@ -59,13 +59,12 @@ def is_valid_help_url(url: str, base_url: str) -> bool:
     if parsed.netloc and parsed.netloc != base_parsed.netloc:
         return False
     
-    # Must be under /help/ path
-    if not parsed.path.startswith('/help/'):
+    # Must be under /help/ or /ru/help/ path (including exact match)
+    path = parsed.path.rstrip('/')
+    if not (parsed.path.startswith('/help/') or parsed.path.startswith('/ru/help/') or 
+            path == '/help' or path == '/ru/help'):
         return False
     
-    # Should be HTML page
-    if parsed.path.endswith('.html') or not parsed.path.endswith('/'):
-        return True
-    
-    return False
+    # Should be HTML page or directory
+    return True
 

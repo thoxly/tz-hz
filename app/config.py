@@ -19,6 +19,19 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
     
+    # Telegram Bot (optional)
+    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    TELEGRAM_BOT_ENABLED: bool = False
+    
+    # LLM Settings
+    OPENAI_API_KEY: Optional[str] = None
+    ANTHROPIC_API_KEY: Optional[str] = None
+    DEEPSEEK_API_KEY: Optional[str] = None
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    LLM_PROVIDER: str = "ollama"  # openai, anthropic, deepseek, ollama
+    LLM_MODEL: Optional[str] = None  # Если None, используется по умолчанию для провайдера
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
