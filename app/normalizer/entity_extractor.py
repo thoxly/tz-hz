@@ -53,14 +53,18 @@ class EntityExtractor:
         block_type = block.get('type')
         
         if block_type == 'header':
+            data = {
+                'level': block.get('level'),
+                'text': block.get('text'),
+                'anchor': block.get('id', '')
+            }
+            # Include kind if present (e.g., 'tab' for tabs)
+            if block.get('kind'):
+                data['kind'] = block.get('kind')
             return Entity(
                 doc_id=doc_id,
                 type='header',
-                data={
-                    'level': block.get('level'),
-                    'text': block.get('text'),
-                    'anchor': block.get('id', '')
-                }
+                data=data
             )
         
         elif block_type == 'code_block':

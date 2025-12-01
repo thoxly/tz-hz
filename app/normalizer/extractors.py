@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, NavigableString
 from typing import List, Dict, Optional
 import re
 
@@ -27,6 +27,29 @@ class SpecialBlockExtractor:
             r'endpoints',
             r'метод',
             r'методы'
+        ],
+        'Важно': [
+            r'важно\s*:',
+            r'important\s*:',
+            r'важно\s*$',
+        ],
+        'Обратите внимание': [
+            r'обратите внимание',
+            r'note\s*:',
+            r'примечание\s*:',
+            r'attention\s*:',
+        ],
+        'Вкладка': [
+            r'вкладка\s*«[^»]+»',
+            r'вкладка\s*"[^"]+"',
+            r'tab\s*«[^»]+»',
+            r'tab\s*"[^"]+"',
+        ],
+        'Attention': [
+            r'начало\s*внимание',
+            r'конец\s*внимание',
+            r'начало\s*attention',
+            r'конец\s*attention',
         ]
     }
     
@@ -41,6 +64,10 @@ class SpecialBlockExtractor:
             blocks = self._extract_blocks_by_type(soup, block_type, patterns)
             special_blocks.extend(blocks)
         
+        # Extract attention blocks (between markers)
+        attention_blocks = self._extract_attention_blocks(soup)
+        special_blocks.extend(attention_blocks)
+        
         return special_blocks
     
     def _extract_blocks_by_type(self, soup: BeautifulSoup, block_type: str, patterns: List[str]) -> List[Dict]:
@@ -51,7 +78,7 @@ class SpecialBlockExtractor:
         compiled_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
         
         # Search for headings or text that match patterns
-        for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'section']):
+        for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'section', 'span']):
             text = element.get_text(strip=True)
             
             # Check if text matches any pattern
@@ -69,6 +96,30 @@ class SpecialBlockExtractor:
         """Extract content of a special block starting from the given element."""
         # Get the heading or trigger text
         heading_text = element.get_text(strip=True)
+        
+        # For "Важно" and "Обратите внимание", the content might be in the same element
+        if block_type in ['Важно', 'Обратите внимание']:
+            # Check if it's a paragraph with bold span
+            if element.name == 'p':
+                # Extract full text including content after ":"
+                full_text = element.get_text(strip=True)
+                # Split by colon to separate label from content
+                if ':' in full_text:
+                    parts = full_text.split(':', 1)
+                    if len(parts) == 2:
+                        heading_text = parts[0].strip()
+                        content_text = parts[1].strip()
+                        if content_text:
+                            return {
+                                'type': 'special_block',
+                                'kind': block_type,
+                                'heading': heading_text,
+                                'content': [{
+                                    'tag': 'p',
+                                    'text': content_text,
+                                    'html': str(element)
+                                }]
+                            }
         
         # Find the content that follows this element
         content_elements = []
@@ -121,7 +172,7 @@ class SpecialBlockExtractor:
                             if sibling.name and sibling.name.startswith('h'):
                                 break
         
-        if content_elements:
+        if content_elements or block_type in ['Важно', 'Обратите внимание']:
             return {
                 'type': 'special_block',
                 'kind': block_type,
@@ -130,6 +181,89 @@ class SpecialBlockExtractor:
             }
         
         return None
+    
+    def _extract_attention_blocks(self, soup: BeautifulSoup) -> List[Dict]:
+        """Extract attention blocks between начало внимание / конец внимание markers."""
+        blocks = []
+        
+        # Patterns for different special block types
+        block_patterns = {
+            'warning': {
+                'start': r'начало\s*(внимание|attention)',
+                'end': r'конец\s*(внимание|attention)',
+                'kind': 'warning'
+            },
+            'example': {
+                'start': r'начало\s*(примера|пример|example)',
+                'end': r'конец\s*(примера|пример|example)',
+                'kind': 'example'
+            },
+            'important': {
+                'start': r'начало\s*(важно|important)',
+                'end': r'конец\s*(важно|important)',
+                'kind': 'important'
+            }
+        }
+        
+        for block_type, patterns in block_patterns.items():
+            start_markers = []
+            
+            for element in soup.find_all(['p', 'div', 'span', 'code']):
+                text = element.get_text(strip=True).lower()
+                if re.search(patterns['start'], text, re.I):
+                    start_markers.append((element, patterns))
+            
+            # Extract content between markers
+            for start, patterns_info in start_markers:
+                current = start.next_sibling
+                content_text_parts = []
+                
+                while current:
+                    if isinstance(current, Tag):
+                        # Check if this is an end marker
+                        text = current.get_text(strip=True).lower()
+                        if re.search(patterns_info['end'], text, re.I):
+                            break
+                        
+                        # Collect content (skip the marker itself)
+                        text = current.get_text(strip=True)
+                        if text and not re.search(patterns_info['start'], text, re.I):
+                            content_text_parts.append(text)
+                    elif isinstance(current, NavigableString):
+                        text = str(current).strip()
+                        if text:
+                            content_text_parts.append(text)
+                    
+                    current = current.next_sibling
+                
+                # Also check parent's siblings
+                if not content_text_parts:
+                    parent = start.parent
+                    if parent:
+                        found_start = False
+                        for sibling in parent.children:
+                            if sibling == start:
+                                found_start = True
+                                continue
+                            if found_start and isinstance(sibling, Tag):
+                                text = sibling.get_text(strip=True).lower()
+                                if re.search(patterns_info['end'], text, re.I):
+                                    break
+                                text = sibling.get_text(strip=True)
+                                if text and not re.search(patterns_info['start'], text, re.I):
+                                    content_text_parts.append(text)
+                
+                if content_text_parts:
+                    # Combine all text
+                    combined_text = ' '.join(content_text_parts).strip()
+                    if combined_text:
+                        blocks.append({
+                            'type': 'special_block',
+                            'kind': patterns_info['kind'],
+                            'text': combined_text
+                        })
+        
+        return blocks
     
     def extract_table_of_contents(self, soup: BeautifulSoup) -> Optional[Dict]:
         """Extract table of contents (В этой статье)."""
@@ -177,4 +311,3 @@ class SpecialBlockExtractor:
             result.append(special_block)
         
         return result
-

@@ -37,3 +37,5 @@ echo ""
 echo "You can now start the application:"
 echo "  uvicorn app.main:app --reload"
 
+
+

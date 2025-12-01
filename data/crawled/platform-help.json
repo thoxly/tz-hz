@@ -1,0 +1,15 @@
+{
+  "doc_id": "platform-help",
+  "url": "https://elma365.com/ru/help/platform/platform-help.html",
+  "title": "redirect",
+  "breadcrumbs": [],
+  "section": "[platform]",
+  "html": "<!DOCTYPE html>\n<html lang=\"\">\n<head>\n<meta charset=\"utf-8\"/>\n<meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"/>\n<meta content=\"width=device-width, initial-scale=1.0\" name=\"viewport\"/>\n<title>redirect</title>\n</head>\n<body>\n<script>\n\t\twindow.location.href = 'platform-distribution.html'\n\t</script>\n</body>\n</html>",
+  "plain_text": "redirect",
+  "links": [],
+  "last_crawled": "2025-11-29T19:41:58.250206",
+  "metadata": {
+    "depth": 3,
+    "saved_at": "2025-11-29T19:41:58.597086"
+  }
+}

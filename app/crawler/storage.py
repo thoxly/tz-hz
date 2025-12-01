@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.config import settings
 from app.database.models import Doc
+from app.utils import normalize_path, extract_outgoing_links
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +37,20 @@ class Storage:
                 }
             }
             
+            # Compute normalized_path for navigation
+            normalized_path = normalize_path(doc_data['url'])
+            
+            # Extract outgoing_links from normalized blocks if available
+            outgoing_links = None
+            if 'blocks' in content_data:
+                outgoing_links = extract_outgoing_links(content_data['blocks'])
+            
             # Use PostgreSQL upsert (INSERT ... ON CONFLICT)
             stmt = insert(Doc).values(
                 doc_id=doc_data['doc_id'],
                 url=doc_data['url'],
+                normalized_path=normalized_path,
+                outgoing_links=outgoing_links,
                 title=doc_data.get('title'),
                 section=doc_data.get('section'),
                 content=content_data,
@@ -50,6 +61,8 @@ class Storage:
                 index_elements=['doc_id'],
                 set_=dict(
                     url=stmt.excluded.url,
+                    normalized_path=stmt.excluded.normalized_path,
+                    outgoing_links=stmt.excluded.outgoing_links,
                     title=stmt.excluded.title,
                     section=stmt.excluded.section,
                     content=stmt.excluded.content,

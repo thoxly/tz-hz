@@ -1,0 +1,15 @@
+{
+  "doc_id": "360028227932",
+  "url": "https://elma365.com/ru/help/kedo/360028227932.html",
+  "title": "redirect",
+  "breadcrumbs": [],
+  "section": "[kedo]",
+  "html": "<!DOCTYPE html>\n<html lang=\"\">\n<head>\n<meta charset=\"utf-8\"/>\n<meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"/>\n<meta content=\"width=device-width, initial-scale=1.0\" name=\"viewport\"/>\n<title>redirect</title>\n</head>\n<body>\n<script>\n\t\twindow.location.href = 'type-script.html'\n\t</script>\n</body>\n</html>",
+  "plain_text": "redirect",
+  "links": [],
+  "last_crawled": "2025-11-29T20:23:05.947399",
+  "metadata": {
+    "depth": 6,
+    "saved_at": "2025-11-29T20:23:06.163380"
+  }
+}

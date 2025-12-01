@@ -1,6 +1,6 @@
-# ELMA365 Documentation Crawler
+# ELMA365 Agent Pipeline with MCP
 
-FastAPI application for crawling, normalizing, and storing ELMA365 documentation pages.
+FastAPI application for crawling, normalizing, and storing ELMA365 documentation pages, with an agent pipeline for process automation design.
 
 ## Features
 
@@ -11,33 +11,50 @@ FastAPI application for crawling, normalizing, and storing ELMA365 documentation
 - **Entity Extraction**: Extracts semantic elements (headers, code blocks, special blocks, lists) to entities table
 - **Dual Storage**: Saves to PostgreSQL (JSONB) and local JSON files
 - **RESTful API**: FastAPI endpoints for all operations
+- **MCP Server**: Model Context Protocol server for accessing documentation (HTTP and stdin/stdout transports)
+- **Agent Pipeline**: ProcessExtractor → ArchitectAgent → ScopeAgent for automated process design
+- **Telegram Bot**: Simple interface for running the agent pipeline
 
 ## Project Structure
 
 ```
 .
-├── app/
+├── app/                     # FastAPI application
 │   ├── main.py              # FastAPI application entry point
 │   ├── config.py            # Configuration management
-│   ├── utils.py             # Utility functions (doc_id extraction, etc.)
+│   ├── schemas.py           # Pydantic schemas
+│   ├── utils.py             # Utility functions
 │   ├── crawler/             # Crawler module
-│   │   ├── crawler.py       # Main crawler logic
-│   │   ├── parser.py        # HTML parsing with BeautifulSoup
-│   │   └── storage.py       # Storage handler (DB + JSON)
 │   ├── normalizer/          # Normalizer module
-│   │   ├── normalizer.py    # Main normalization logic
-│   │   ├── extractors.py    # Special block extractors
-│   │   └── entity_extractor.py  # Entity extraction
 │   ├── database/            # Database layer
-│   │   ├── models.py         # SQLAlchemy models
-│   │   └── database.py      # Database connection & session
 │   └── api/                 # API endpoints
-│       └── routes.py        # FastAPI routes
+├── mcp/                     # MCP server
+│   ├── server_http.py       # MCP HTTP transport (FastAPI)
+│   ├── server_stdin.py      # MCP stdin/stdout transport
+│   ├── core/                # MCP core components
+│   │   ├── registry.py      # Tool registry
+│   │   ├── executor.py      # Tool executor
+│   │   └── models.py        # Tool input/output models
+│   └── tools/               # MCP tools
+│       ├── search_docs.py
+│       ├── get_doc.py
+│       ├── get_entities.py
+│       ├── find_examples.py
+│       └── find_process_patterns.py
+├── agents/                  # AI agents
+│   ├── base_agent.py        # Base agent class
+│   ├── process_extractor.py # AS-IS process extraction
+│   ├── architect_agent.py   # ELMA365 architecture design
+│   ├── scope_agent.py       # Scope specification creation
+│   ├── mcp_client.py       # MCP client for agents
+│   ├── prompts.py           # System prompts (versioned)
+│   └── models/              # Agent input/output schemas
+├── pipeline/                 # Pipeline orchestrator
+│   ├── orchestrator.py      # Main pipeline logic
+│   └── validators.py        # Result validators
+├── telegram/                 # Telegram bot
+│   └── bot.py               # Bot implementation
 ├── tests/                   # Test suite
-│   ├── test_crawler.py      # Crawler tests
-│   ├── test_normalizer.py   # Normalizer tests
-│   ├── test_control_pages.py  # Control page tests
-│   └── test_integration.py   # Integration tests
 ├── alembic/                 # Database migrations
 ├── requirements.txt         # Python dependencies
 └── .env.example            # Environment variables template
@@ -88,6 +105,10 @@ Environment variables (see `.env.example`):
 - `CRAWL_MAX_CONCURRENT`: Maximum concurrent requests (default: 5)
 - `OUTPUT_DIR`: Local JSON output directory (default: data/crawled)
 - `LOG_LEVEL`: Logging level (default: INFO)
+- `DEEPSEEK_API_KEY`: DeepSeek API key for LLM
+- `DEEPSEEK_API_URL`: DeepSeek API URL (default: https://api.deepseek.com/v1/chat/completions)
+- `TELEGRAM_BOT_TOKEN`: Telegram bot token
+- `MCP_SERVER_MODE`: MCP server mode (http or stdin, default: http)
 
 ## Usage
 
@@ -154,17 +175,39 @@ curl -X POST "http://localhost:8000/api/normalize/all"
 curl "http://localhost:8000/api/docs"
 ```
 
+## Documentation
+
+### Knowledge Base Specification
+
+Подробная спецификация структуры хранения и обработки документации ELMA365:
+
+📄 **[KNOWLEDGE_BASE_SPEC.md](docs/KNOWLEDGE_BASE_SPEC.md)**
+
+Спецификация описывает:
+- Структуру таблицы `docs` и формат JSONB контента
+- Алгоритм нормализации путей (`normalize_path()`)
+- Правила внутренней навигации между статьями
+- Формат хранения ссылок (`outgoing_links`)
+- Проверку ссылочной целостности
+- Примеры использования для RAG, MCP, Knowledge Graph
+
+**Аудитория:** Backend разработчики, разработчики агентов, разработчики MCP инструментов, разработчики RAG систем
+
 ## Database Schema
 
 ### docs table
 - `id` (PK)
 - `doc_id` (unique) - URL-based ID with UUID fallback
 - `url` (unique)
+- `normalized_path` (unique) - Normalized path for internal navigation
+- `outgoing_links` (ARRAY) - Array of normalized paths this document links to
 - `title`
 - `section` - Combined breadcrumbs + URL segment
 - `content` (JSONB) - Normalized structured blocks
 - `created_at`
 - `last_crawled`
+
+> **Подробнее:** см. [KNOWLEDGE_BASE_SPEC.md](docs/KNOWLEDGE_BASE_SPEC.md)
 
 ### entities table
 - `id` (PK)
@@ -256,6 +299,87 @@ alembic upgrade head
 # Rollback
 alembic downgrade -1
 ```
+
+## MCP Server
+
+The MCP (Model Context Protocol) server provides access to ELMA365 documentation through standardized tools.
+
+### Available Tools
+
+1. **elma365.search_docs** - Search documentation by query
+2. **elma365.get_doc** - Get a specific document by doc_id
+3. **elma365.get_entities** - Get entities from a document (filtered by type)
+4. **elma365.find_examples** - Find examples by keywords
+5. **elma365.find_process_patterns** - Find process patterns (согласование, поручение, etc.)
+
+### Running MCP Server
+
+#### HTTP Mode (default)
+The MCP server is integrated into FastAPI and available at `/mcp/tools/list` and `/mcp/tools/call`.
+
+#### stdin/stdout Mode
+For use with LLM clients that support MCP via stdio:
+
+```bash
+python -m mcp.server_stdin
+```
+
+## Agent Pipeline
+
+The pipeline consists of three agents:
+
+1. **ProcessExtractor** - Extracts AS-IS process from meeting text
+2. **ArchitectAgent** - Designs ELMA365 architecture from AS-IS
+3. **ScopeAgent** - Creates scope specification (ТЗ) from architecture
+
+### Using the Pipeline
+
+```python
+from agents.mcp_client import MCPClient
+from pipeline.orchestrator import PipelineOrchestrator
+from app.database import get_session_factory
+
+async with get_session_factory() as db_session:
+    mcp_client = MCPClient()
+    orchestrator = PipelineOrchestrator(mcp_client=mcp_client)
+    
+    result = await orchestrator.run_process_pipeline(
+        text="Meeting transcript...",
+        db_session=db_session,
+        user="user123"
+    )
+    
+    print(result["as_is"])
+    print(result["architecture"])
+    print(result["scope"])
+```
+
+## Telegram Bot
+
+The Telegram bot provides a simple interface for running the agent pipeline.
+
+### Starting the Bot
+
+```bash
+python -m telegram.bot
+```
+
+### Bot Commands
+
+- `/start` - Welcome message
+- `/run` - Start process analysis (bot will ask for meeting text)
+
+The bot will return three messages:
+1. AS-IS process description
+2. ELMA365 architecture
+3. Scope specification (ТЗ)
+
+## Database Schema
+
+### New Tables
+
+- **crawler_state**: Tracks crawler status and progress
+- **runs**: Stores pipeline execution history
 
 ## License
 

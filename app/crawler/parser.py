@@ -120,12 +120,40 @@ class HTMLParser:
         return text.strip()
     
     def extract_links(self, soup: BeautifulSoup, current_url: str) -> List[str]:
-        """Extract all links from the page."""
+        """
+        Extract all links from the page.
+        Focuses on finding documentation article links.
+        """
         links = []
+        seen_links = set()  # Avoid duplicates
+        
+        # Extract all anchor tags with href
         for a_tag in soup.find_all('a', href=True):
             href = a_tag['href']
+            
+            # Skip empty, javascript, mailto, tel links
+            if not href or href.startswith('javascript:') or href.startswith('mailto:') or href.startswith('tel:'):
+                continue
+            
+            # Skip anchor links (fragments)
+            if href.startswith('#'):
+                continue
+            
             # Normalize to absolute URL
             absolute_url = urljoin(current_url, href)
-            links.append(absolute_url)
+            
+            # Remove fragment (#) from URL
+            if '#' in absolute_url:
+                absolute_url = absolute_url.split('#')[0]
+            
+            # Remove query parameters for consistency
+            parsed = urlparse(absolute_url)
+            clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            
+            # Avoid duplicates
+            if clean_url not in seen_links:
+                seen_links.add(clean_url)
+                links.append(clean_url)
+        
         return links
 

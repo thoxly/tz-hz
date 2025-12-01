@@ -19,6 +19,16 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
     
+    # LLM settings
+    DEEPSEEK_API_KEY: Optional[str] = None
+    DEEPSEEK_API_URL: str = "https://api.deepseek.com/v1/chat/completions"
+    
+    # Telegram settings
+    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    
+    # MCP settings
+    MCP_SERVER_MODE: str = "http"  # stdin or http
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -42,6 +42,8 @@ class DocResponse(BaseModel):
     id: int
     doc_id: str
     url: str
+    normalized_path: Optional[str] = None
+    outgoing_links: Optional[List[str]] = None
     title: Optional[str]
     section: Optional[str]
     created_at: Optional[str] = None
@@ -184,6 +186,104 @@ async def get_crawl_status():
     return CrawlStatusResponse(**status)
 
 
+@router.post("/normalize/all")
+async def normalize_all(
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    force: bool = False
+):
+    """Normalize all crawled documents.
+    
+    Args:
+        force: If True, renormalize all documents even if already normalized
+    """
+    # Get all documents (get IDs and URLs only to avoid loading full content)
+    result = await db.execute(select(Doc.doc_id, Doc.title))
+    doc_rows = result.all()
+    total_docs = len(doc_rows)
+    
+    async def normalize_docs():
+        # Create a new database session for the background task
+        from app.database.database import get_session_factory
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            try:
+                logger.info(f"Starting normalization of {total_docs} documents (force={force})")
+                normalizer = Normalizer()
+                entity_extractor = EntityExtractor()
+                
+                processed = 0
+                errors = 0
+                skipped = 0
+                
+                # Load all documents at once (more efficient)
+                result = await session.execute(select(Doc))
+                all_docs = result.scalars().all()
+                
+                logger.info(f"Loaded {len(all_docs)} documents from database")
+                
+                for doc in all_docs:
+                    try:
+                        content = doc.content or {}
+                        html = content.get('html', '')
+                        
+                        # Skip if already normalized (unless force=True)
+                        if not force and 'blocks' in content:
+                            skipped += 1
+                            continue
+                        
+                        if not html:
+                            skipped += 1
+                            continue
+                        
+                        # Normalize
+                        normalized = normalizer.normalize(
+                            html,
+                            title=doc.title,
+                            breadcrumbs=content.get('breadcrumbs', []),
+                            source_url=doc.url
+                        )
+                        
+                        # Extract outgoing links from normalized blocks
+                        from app.utils import extract_outgoing_links
+                        if 'blocks' in normalized:
+                            doc.outgoing_links = extract_outgoing_links(normalized['blocks'])
+                        
+                        # Update document
+                        doc.content = normalized
+                        await session.commit()
+                        
+                        # Extract entities
+                        await entity_extractor.extract_and_save_entities(
+                            session,
+                            doc.doc_id,
+                            normalized
+                        )
+                        
+                        processed += 1
+                        if processed % 10 == 0:
+                            logger.info(f"Normalized {processed}/{total_docs} documents (skipped: {skipped}, errors: {errors})")
+                    
+                    except Exception as e:
+                        errors += 1
+                        logger.error(f"Error normalizing {doc.doc_id}: {e}", exc_info=True)
+                        await session.rollback()
+                
+                logger.info(f"Normalization completed: {processed} processed, {skipped} skipped, {errors} errors")
+            
+            except Exception as e:
+                logger.error(f"Error in normalize_docs: {e}", exc_info=True)
+                await session.rollback()
+    
+    asyncio.create_task(normalize_docs())
+    
+    return {
+        "message": "Normalization started for all documents",
+        "total_docs": total_docs,
+        "force": force
+    }
+
+
 @router.post("/normalize/{doc_id}")
 async def normalize_document(
     doc_id: str,
@@ -211,8 +311,14 @@ async def normalize_document(
     normalized = normalizer.normalize(
         html,
         title=doc.title,
-        breadcrumbs=content.get('breadcrumbs', [])
+        breadcrumbs=content.get('breadcrumbs', []),
+        source_url=doc.url
     )
+    
+    # Extract outgoing links from normalized blocks
+    from app.utils import extract_outgoing_links
+    if 'blocks' in normalized:
+        doc.outgoing_links = extract_outgoing_links(normalized['blocks'])
     
     # Update document content
     doc.content = normalized
@@ -235,57 +341,37 @@ async def normalize_document(
     }
 
 
-@router.post("/normalize/all")
-async def normalize_all(
-    background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
-):
-    """Normalize all crawled documents."""
+@router.get("/docs/stats")
+async def get_docs_stats(db: AsyncSession = Depends(get_db)):
+    """Get statistics about documents in database."""
     # Get all documents
     result = await db.execute(select(Doc))
     docs = result.scalars().all()
     
-    async def normalize_docs():
-        normalizer = Normalizer()
-        entity_extractor = EntityExtractor()
-        
-        for doc in docs:
-            try:
-                content = doc.content or {}
-                html = content.get('html', '')
-                
-                if not html:
-                    continue
-                
-                # Normalize
-                normalized = normalizer.normalize(
-                    html,
-                    title=doc.title,
-                    breadcrumbs=content.get('breadcrumbs', [])
-                )
-                
-                # Update document
-                doc.content = normalized
-                await db.commit()
-                
-                # Extract entities
-                await entity_extractor.extract_and_save_entities(
-                    db,
-                    doc.doc_id,
-                    normalized
-                )
-                
-                logger.info(f"Normalized document: {doc.doc_id}")
-            
-            except Exception as e:
-                logger.error(f"Error normalizing {doc.doc_id}: {e}")
-                await db.rollback()
+    total = len(docs)
+    with_html = 0
+    with_blocks = 0  # Already normalized (has blocks in content)
+    without_html = 0
     
-    asyncio.create_task(normalize_docs())
+    for doc in docs:
+        content = doc.content or {}
+        
+        # Check if already normalized (has blocks)
+        if 'blocks' in content:
+            with_blocks += 1
+        # Check if has HTML (not yet normalized)
+        elif content.get('html'):
+            with_html += 1
+        else:
+            without_html += 1
     
     return {
-        "message": "Normalization started for all documents",
-        "total_docs": len(docs)
+        "total_docs": total,
+        "with_html": with_html,
+        "with_blocks": with_blocks,
+        "without_html": without_html,
+        "can_normalize": with_html,
+        "needs_crawl": without_html
     }
 
 
@@ -373,4 +459,57 @@ async def get_docs_plain_text(
         )
         for row in rows
     ]
+
+
+@router.get("/health")
+async def health_check(db: AsyncSession = Depends(get_db)):
+    """Health check endpoint with checks for DB, MCP, and LLM."""
+    health_status = {
+        "status": "healthy",
+        "checks": {
+            "database": "unknown",
+            "mcp": "unknown",
+            "llm": "unknown"
+        }
+    }
+    
+    # Check database
+    try:
+        await db.execute(select(1))
+        health_status["checks"]["database"] = "healthy"
+    except Exception as e:
+        health_status["checks"]["database"] = f"unhealthy: {str(e)}"
+        health_status["status"] = "degraded"
+    
+    # Check MCP (if HTTP mode, check if router is available)
+    try:
+        # MCP will be checked when server_http is implemented
+        # For now, just check if settings are configured
+        if settings.MCP_SERVER_MODE:
+            health_status["checks"]["mcp"] = "configured"
+        else:
+            health_status["checks"]["mcp"] = "not_configured"
+    except Exception as e:
+        health_status["checks"]["mcp"] = f"error: {str(e)}"
+    
+    # Check LLM (deepseek-reasoner)
+    try:
+        import aiohttp
+        if settings.DEEPSEEK_API_KEY:
+            # Simple check - just verify API key is set
+            health_status["checks"]["llm"] = "configured"
+        else:
+            health_status["checks"]["llm"] = "not_configured"
+    except Exception as e:
+        health_status["checks"]["llm"] = f"error: {str(e)}"
+    
+    # Determine overall status
+    if all(v in ["healthy", "configured"] for v in health_status["checks"].values()):
+        health_status["status"] = "healthy"
+    elif any("unhealthy" in str(v) or "error" in str(v) for v in health_status["checks"].values()):
+        health_status["status"] = "unhealthy"
+    else:
+        health_status["status"] = "degraded"
+    
+    return health_status
 

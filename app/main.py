@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from app.config import settings
-from app.database import init_db
 from app.api.routes import router
+from mcp.server_http import router as mcp_router
 
 # Configure logging
 logging.basicConfig(
@@ -28,12 +28,12 @@ app.add_middleware(
 
 # Include routers
 app.include_router(router, prefix="/api")
+app.include_router(mcp_router)
 
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup."""
-    await init_db()
+    """Application startup."""
     logging.info("Application started")
 
 
